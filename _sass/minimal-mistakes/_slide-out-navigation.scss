@@ -1,0 +1,168 @@
+/* ==========================================================================
+   Slide-out Navigation
+   ========================================================================== */
+
+.site-nav__toggle {
+  display: block; // Show by default, will be hidden on larger screens via media query if desired
+  position: fixed; // Or absolute, depending on desired behavior
+  top: 1rem;
+  left: 1rem; // Position on the left
+  z-index: 1001; // Ensure it's above other content but below the drawer when open
+  background: transparent;
+  border: none;
+  padding: 0.5rem;
+  cursor: pointer;
+
+  .navicon {
+    display: block;
+    position: relative;
+    width: 24px; // Adjust size as needed
+    height: 20px; // Adjust size as needed
+
+    &__bar {
+      display: block;
+      width: 100%;
+      height: 3px; // Thickness of the bars
+      background: #000; // Color of the bars
+      position: absolute;
+      left: 0;
+      transition: all 0.3s ease;
+
+      &:nth-child(1) {
+        top: 0;
+      }
+
+      &:nth-child(2) {
+        top: 50%;
+        transform: translateY(-50%);
+      }
+
+      &:nth-child(3) {
+        bottom: 0;
+      }
+    }
+  }
+
+  // Animation for hamburger to X
+  &.is-active .navicon {
+    &__bar:nth-child(1) {
+      top: 50%;
+      transform: translateY(-50%) rotate(45deg);
+    }
+
+    &__bar:nth-child(2) {
+      opacity: 0;
+    }
+
+    &__bar:nth-child(3) {
+      bottom: 50%;
+      transform: translateY(50%) rotate(-45deg);
+    }
+  }
+}
+
+.site-nav__drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 300px; // Desktop width
+  height: 100vh;
+  background: #fff; // Drawer background color
+  z-index: 1000; // Ensure it's above other content
+  transform: translateX(-100%);
+  transition: transform 0.3s ease-in-out;
+  overflow-y: auto; // Allow scrolling if content is too long
+  padding: 1rem;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+
+  &.is-visible {
+    transform: translateX(0);
+  }
+
+  .site-logo {
+    display: block;
+    margin-bottom: 1rem;
+    img {
+      max-width: 100px; // Adjust as needed
+    }
+  }
+
+  .site-title {
+    display: block;
+    font-size: 1.5em; // Adjust as needed
+    margin-bottom: 1rem;
+    color: #333;
+    text-decoration: none;
+  }
+
+  .site-nav__menu {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    &-item {
+      margin-bottom: 0.5rem;
+
+      a {
+        display: block;
+        padding: 0.5rem 0;
+        color: #333; // Link color
+        text-decoration: none;
+        font-size: 1.1em; // Adjust as needed
+
+        &:hover {
+          color: $primary-color; // Use theme's primary color for hover
+        }
+      }
+    }
+  }
+
+  // Search button inside drawer (if applicable)
+  .search__toggle {
+    display: block; // Or inline-block
+    margin-top: 1rem;
+    background: none;
+    border: 1px solid #ccc;
+    color: #333;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+
+    &:hover {
+      background: #eee;
+    }
+  }
+}
+
+.site-nav__overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5); // Semi-transparent black
+  z-index: 999; // Below drawer, above content
+
+  &.is-visible {
+    display: block;
+  }
+}
+
+// Body class when menu is open
+body.site-nav--is-open {
+  overflow: hidden; // Prevent background scrolling
+}
+
+// Media query for mobile - full screen drawer
+@include breakpoint(max-width $large - 1px) { // Adjust breakpoint as needed from _variables.scss
+  .site-nav__drawer {
+    width: 100%;
+  }
+}
+
+// Optional: Hide toggle button on larger screens if global nav is shown elsewhere
+// @include breakpoint($large) {
+//   .site-nav__toggle {
+//     display: none;
+//   }
+// }

@@ -231,4 +231,36 @@ $(document).ready(function () {
         container.prepend(copyButton);
       });
   }
+
+  // Slide-out navigation
+  var $siteNavToggle = $('.site-nav__toggle');
+  var $siteNavDrawer = $('.site-nav__drawer');
+  var $siteNavOverlay = $('.site-nav__overlay');
+  var $body = $('body');
+
+  $siteNavToggle.on('click', function() {
+    $(this).toggleClass('is-active');
+    $siteNavDrawer.toggleClass('is-visible');
+    $siteNavOverlay.toggleClass('is-visible');
+    $body.toggleClass('site-nav--is-open');
+  });
+
+  $siteNavOverlay.on('click', function() {
+    $siteNavToggle.removeClass('is-active');
+    $siteNavDrawer.removeClass('is-visible');
+    $siteNavOverlay.removeClass('is-visible');
+    $body.removeClass('site-nav--is-open');
+  });
+
+  // Optional: Close menu with Esc key
+  $(document).keyup(function(e) {
+    if (e.keyCode === 27) { // Escape key
+      if ($siteNavDrawer.hasClass('is-visible')) {
+        $siteNavToggle.removeClass('is-active');
+        $siteNavDrawer.removeClass('is-visible');
+        $siteNavOverlay.removeClass('is-visible');
+        $body.removeClass('site-nav--is-open');
+      }
+    }
+  });
 });
