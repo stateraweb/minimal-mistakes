@@ -30,3 +30,26 @@ codekit-config.json
 .sass-cache
 _asset_bundler_cache
 _site
+
+# Python specific
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Build artifacts
+dist/
+build/
+
+# Log files
+*.log
+
+# Virtual environments
+venv/
+*.venv/
+
+# VSCode
+.vscode/
+
+# Application specific
+termux_article_cli/.env
