@@ -1,11 +1,8 @@
 # Core dependencies
 python-dotenv
 PyYAML
-google-generativeai
-
-# Optional AI integrations
-# openai
-# huggingface_hub
+requests
+textual
 
 # Rust is required, but install it manually (not via pip):
 # On Termux: pkg install rust

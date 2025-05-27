@@ -69,17 +69,8 @@ def get_chat_history_file_path() -> str: # Renamed from get_chat_history_file
 
 # --- Keeping other existing API key and URL getters ---
 
-def get_openai_api_key(): # Kept as per previous requirements
-    return os.getenv("OPENAI_API_KEY")
-
-def get_huggingface_api_key(): # Kept as per previous requirements
-    return os.getenv("HF_API_KEY")
-
 def get_gemini_api_key():
     return os.getenv("GEMINI_API_KEY")
-
-def get_github_token(): # Kept as per previous requirements
-    return os.getenv("GITHUB_TOKEN")
 
 def get_github_repo_url():
     return os.getenv("GITHUB_REPO_URL")

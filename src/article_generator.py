@@ -1,76 +1,104 @@
 import json
 import os
-import google.generativeai as genai
-import datetime # Added for generating current date
+import requests
+import datetime
+from .config import APP_ROOT # Added
+
 class ArticleGenerator:
-    def __init__(self, chat_history_file: str, gemini_api_key: str, openai_api_key: str = None, hf_api_key: str = None):
+    def __init__(self, chat_history_file: str, gemini_api_key: str, model_name: str = "gemini-1.5-flash-latest"):
         self.gemini_api_key = gemini_api_key
-        if self.gemini_api_key:
-            try:
-                genai.configure(api_key=self.gemini_api_key)
-                # Initialize the model here or in generate_article.
-                # Let's initialize it here if the API key is present.
-                self.model = genai.GenerativeModel('gemini-1.5-flash-latest') # Or 'gemini-pro'
-            except Exception as e:
-                print(f"Error configuring Gemini API or initializing model: {e}")
-                self.model = None
-        else:
-            self.model = None
+        self.model_name = model_name
+        if not self.gemini_api_key:
             print("Warning: Gemini API key not provided. Article generation will be disabled.")
 
-        # self.openai_api_key = openai_api_key # Kept if needed for other funcs
-        # self.hf_api_key = hf_api_key       # Kept if needed for other funcs
         self.chat_history_file = chat_history_file
         self.chat_history = self.load_chat_history()
 
+        self.prompt_template_path = os.path.join(APP_ROOT, "data", "sys_prompt.md")
+        try:
+            with open(self.prompt_template_path, 'r') as f:
+                self.prompt_template = f.read()
+        except FileNotFoundError:
+            print(f"ERROR: System prompt file not found at {self.prompt_template_path}")
+            self.prompt_template = None # Or raise an error
+        except Exception as e:
+            print(f"ERROR: Could not read system prompt file: {e}")
+            self.prompt_template = None # Or raise an error
+
 
     def generate_article(self, topic_prompt: str) -> str: # Renamed 'prompt' to 'topic_prompt' for clarity
-        if not self.model:
-            response_text = "Error: Gemini API key not configured or model not initialized."
-            if not hasattr(self, 'chat_history'): self.chat_history = []
-            self.chat_history.append({"user": topic_prompt, "ai": response_text}) # Use topic_prompt for history
+        if not self.gemini_api_key:
+            response_text = "Error: Gemini API key not configured."
+            if not hasattr(self, 'chat_history'): self.chat_history = [] # Ensure chat_history exists
+            self.chat_history.append({"user": topic_prompt, "ai": response_text})
+            self.save_chat_history()
+            return response_text
+
+        if not self.prompt_template:
+            response_text = "Error: System prompt template not loaded."
+            if not hasattr(self, 'chat_history'): self.chat_history = [] # Ensure chat_history exists
+            self.chat_history.append({"user": topic_prompt, "ai": response_text})
             self.save_chat_history()
             return response_text
 
         current_date = datetime.datetime.now().strftime('%Y-%m-%d')
+        detailed_internal_prompt = self.prompt_template.format(
+            current_date=current_date,
+            topic_prompt=topic_prompt
+        )
+        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model_name}:generateContent?key={self.gemini_api_key}"
+        headers = {"Content-Type": "application/json"}
+        data = {
+            "contents": [
+                {
+                    "parts": [
+                        {
+                            "text": detailed_internal_prompt
+                        }
+                    ]
+                }
+            ]
+            # Later, consider adding "generationConfig" if needed from original capabilities
+        }
 
-        detailed_internal_prompt = f"""Please generate a complete Markdown article based on the following topic: "{topic_prompt}"
-
-The article must start with a YAML frontmatter block, enclosed by '---' delimiters.
-The frontmatter must include the following fields:
-- title: A suitable title for the article.
-- description: A concise description (1-2 sentences).
-- excerpt: A short excerpt, similar to the description or perhaps slightly longer.
-- categories: A YAML list of 1-3 relevant categories (e.g., ['Tech Basics', 'Web Concepts']).
-- tags: A YAML list of 2-5 relevant tags (e.g., ['beginner', 'conceptual', 'ai']).
-- date: Set this to {current_date}.
-- image: (Optional) A relevant image URL or path, or leave blank.
-
-Following the frontmatter, provide the main article content in well-structured Markdown.
-Ensure the Markdown is clean and adheres to common standards.
-The article content should be comprehensive and informative based on the topic: "{topic_prompt}".
-"""
         try:
-            # Using the detailed_internal_prompt to generate content
-            response = self.model.generate_content(detailed_internal_prompt)
+            response = requests.post(api_url, headers=headers, json=data, timeout=60) # Added timeout
+            response.raise_for_status()  # Raises an HTTPError for bad responses (4XX or 5XX)
             
-            # Accessing the text content. For Gemini, response.text is typical.
-            # If response.parts is used, it's often for more complex content (e.g. multimodal)
-            # or when specific parts of a streamed response are handled.
-            # Based on common usage, response.text should be the primary way for simple text generation.
-            if hasattr(response, 'text') and response.text is not None: # Check if text is not None
-                response_text = response.text
-            elif hasattr(response, 'parts') and response.parts: # Check if parts exist and is not empty
-                 response_text = "".join(part.text for part in response.parts if hasattr(part, 'text'))
-            else: # If neither .text nor .parts with text is found.
-                response_text = "Error: Could not extract text from Gemini response. The response object did not contain .text (with content) or .parts with text."
-                # print(f"DEBUG: Unexpected Gemini response structure: {response}")
+            response_json = response.json()
+            
+            # Text extraction (add robust checks)
+            if response_json.get("candidates") and \
+               isinstance(response_json["candidates"], list) and \
+               len(response_json["candidates"]) > 0 and \
+               response_json["candidates"][0].get("content") and \
+               response_json["candidates"][0]["content"].get("parts") and \
+               isinstance(response_json["candidates"][0]["content"]["parts"], list) and \
+               len(response_json["candidates"][0]["content"]["parts"]) > 0 and \
+               response_json["candidates"][0]["content"]["parts"][0].get("text"):
+                response_text = response_json["candidates"][0]["content"]["parts"][0]["text"]
+            elif response_json.get("promptFeedback") and \
+                 response_json["promptFeedback"].get("blockReason"):
+                # Handle cases where the prompt was blocked
+                block_reason = response_json["promptFeedback"]["blockReason"]
+                safety_ratings_info = response_json["promptFeedback"].get("safetyRatings", [])
+                response_text = f"Error: Prompt blocked by API. Reason: {block_reason}. Safety Ratings: {safety_ratings_info}"
+            else:
+                # Fallback for unexpected structure or missing text
+                response_text = "Error: Could not extract text from Gemini API response or response format is unexpected."
+                # print(f"DEBUG: Unexpected Gemini API response structure: {response_json}") # For debugging
 
-
-        except Exception as e: 
-            response_text = f"Error generating article using Gemini API: {str(e)}"
+        except requests.exceptions.HTTPError as http_err:
+            response_text = f"Error: HTTP error occurred: {http_err}. Response: {response.text}"
+        except requests.exceptions.RequestException as req_err:
+            response_text = f"Error: Request failed: {req_err}"
+        except json.JSONDecodeError:
+            response_text = f"Error: Failed to decode JSON response from API. Response: {response.text if 'response' in locals() else 'No response object'}"
+        except Exception as e:
+            response_text = f"Error generating article using Gemini API via requests: {str(e)}"
         
         # Store the original user topic_prompt and the full AI response in chat history
+        if not hasattr(self, 'chat_history'): self.chat_history = [] # Ensure chat_history exists
         self.chat_history.append({"user": topic_prompt, "ai": response_text})
         self.save_chat_history()
         return response_text # This is the raw_response_text
