@@ -74,11 +74,6 @@ Termux Article CLI is a command-line tool designed to streamline the creation of
         GIT_DEFAULT_BRANCH="main"
         # Default commit message if no specific message is provided
         GIT_DEFAULT_COMMIT_MESSAGE="feat: Add/update articles via CLI"
-
-        # --- Optional/Legacy API Keys (Uncomment if needed for other models) ---
-        # OPENAI_API_KEY="YOUR_OPENAI_API_KEY_HERE"
-        # HF_API_KEY="YOUR_HUGGINGFACE_API_KEY_HERE"
-        # GITHUB_TOKEN="YOUR_GITHUB_TOKEN_HERE" # Note: Not used by current SSH push method
         ```
 
         *   **`GEMINI_API_KEY`**: Your Google Gemini API key. **Required for `generate` command.**
