@@ -38,15 +38,15 @@ class MainScreen(Screen):
     def on_button_pressed(self, event: Button.Pressed) -> None:
         """Handles button press events for the main menu."""
         if event.button.id == "btn_generate":
-            self.app.push_screen(GenerateScreen()) # Changed from self.app.notify(...)
+            self.app.push_screen(GenerateScreen()) 
         elif event.button.id == "btn_review":
-            self.app.push_screen(ReviewMenuScreen()) # Changed from self.app.notify(...)
+            self.app.push_screen(ReviewMenuScreen()) 
         elif event.button.id == "btn_finalize":
             self.app.notify("Finalize Draft button pressed (placeholder)")
         elif event.button.id == "btn_push":
             self.app.notify("Push to GitHub button pressed (placeholder)")
         elif event.button.id == "btn_exit":
-            self.app.push_screen(QuitScreen()) # Changed from self.app.exit()
+            self.app.push_screen(QuitScreen())
 
 class QuitScreen(Screen):
     """A screen to confirm if the user wants to quit."""
@@ -67,25 +67,6 @@ class QuitScreen(Screen):
             self.app.exit()
         elif event.button.id == "btn_quit_no":
             self.app.pop_screen()
-
-class TermuxArticleApp(App):
-    """The main Textual application class."""
-
-    TITLE = "Termux Article CLI"
-    # CSS_PATH = "styles.css" # Optional: Can add a CSS file later
-
-    SCREENS = {
-        "main_screen": MainScreen,
-        "quit_screen": QuitScreen,
-        "generate_screen": GenerateScreen,
-        "review_menu_screen": ReviewMenuScreen,
-        "article_list_screen": ArticleListScreen,
-        "view_article_screen": ViewArticleScreen # Add this line
-    }
-
-    def on_mount(self) -> None:
-        """Called when the app is first mounted."""
-        self.push_screen("main_screen") # Start with the main screen
 
 class GenerateScreen(Screen):
     """Screen for generating a new article."""
@@ -110,7 +91,7 @@ class GenerateScreen(Screen):
         This method is intended to be run in a worker thread.
         """
         try:
-            worker = get_current_worker() # Get current worker
+            worker = get_current_worker() 
             if worker.is_cancelled:
                 return False, "Generation cancelled.", None
 
@@ -127,7 +108,6 @@ class GenerateScreen(Screen):
             article_generator = ArticleGenerator(
                 chat_history_file=chat_history_path,
                 gemini_api_key=gemini_key
-                # model_name can be default or configured if we add that option later
             )
 
             if worker.is_cancelled:
@@ -139,8 +119,7 @@ class GenerateScreen(Screen):
             if worker.is_cancelled:
                 return False, "Generation cancelled.", None
 
-            if "Error:" in raw_ai_output[:30]: # Check for errors from generator itself
-                # Save to failed_dir (optional, but good for debugging)
+            if "Error:" in raw_ai_output[:30]: 
                 error_filename = f"generation_error_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.txt"
                 save_article(f"Prompt: {prompt_text}\n\nError: {raw_ai_output}", failed_dir, error_filename)
                 return False, f"Generation Error: {raw_ai_output}", None
@@ -154,11 +133,9 @@ class GenerateScreen(Screen):
                 return True, f"Article draft generated, validated, and saved to: {saved_path}", frontmatter_data
             else:
                 self.query_one("#generation_status_output", Static).update("Saving to failed validation directory...")
-                saved_path = save_article(raw_ai_output, failed_dir) # Auto-generates filename
+                saved_path = save_article(raw_ai_output, failed_dir) 
                 return False, f"Frontmatter Validation Failed: {error_message}. Raw output saved to: {saved_path}", None
         except Exception as e:
-            # Log the full error for debugging if possible, then return a user-friendly message
-            # print(f"Full error in worker: {e}", file=sys.stderr) # For server-side debugging
             return False, f"An unexpected error occurred during generation: {str(e)}", None
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
@@ -170,16 +147,14 @@ class GenerateScreen(Screen):
                 self.app.notify("Please enter a prompt.", severity="warning")
                 return
 
-            # Disable UI elements
             prompt_input_widget.disabled = True
             event.button.disabled = True
             self.query_one("#generation_status_output", Static).update("Starting generation process...")
 
-            # Run the generation in a worker
             self.run_worker(
                 self._perform_generation(prompt_text), 
                 self._on_generation_complete, 
-                exclusive=True # Ensures only one generation worker runs at a time for this screen
+                exclusive=True 
             )
         elif event.button.id == "btn_back_to_main":
             self.app.pop_screen()
@@ -188,21 +163,16 @@ class GenerateScreen(Screen):
         """Called when the generation worker finishes."""
         success, message, frontmatter_data = result
 
-        # Re-enable UI elements
         self.query_one("#prompt_input", Input).disabled = False
         self.query_one("#btn_do_generate", Button).disabled = False
         
-        self.query_one("#generation_status_output", Static).update(message) # Display the message from worker
+        self.query_one("#generation_status_output", Static).update(message) 
         
         if success:
             self.app.notify("Article generation successful!", severity="information")
-            # Optionally clear the prompt or do other UI updates
-            # self.query_one("#prompt_input", Input).value = "" 
         else:
             self.app.notify("Article generation failed.", severity="error")
         
-        # This is where step 5 ("Display Frontmatter Validation") will be more detailed.
-        # For now, the message from _perform_generation already contains validation info.
         if frontmatter_data:
              title = frontmatter_data.get('title', 'N/A')
              date = frontmatter_data.get('date', 'N/A')
@@ -243,32 +213,28 @@ class ArticleListScreen(Screen):
         super().__init__(**kwargs)
         self.directory_type = directory_type
         self.directory_path = directory_path
-        self.title = f"Articles in: {self.directory_type.title()}" # For Header
+        self.title = f"Articles in: {self.directory_type.title()}" 
 
     def compose(self) -> ComposeResult:
-        yield Header() # Header will use self.title if set before mount
-        yield Static(f"Listing: {self.directory_type.title()}", classes="title") # Explicit title in body
+        yield Header() 
+        yield Static(f"Listing: {self.directory_type.title()}", classes="title") 
         yield ListView(id="article_list_view")
         yield Button("Back to Review Menu", id="btn_back_to_review_menu", variant="default")
         yield Footer()
 
-    async def on_mount(self) -> None: # Can be async if preferred, or sync
+    async def on_mount(self) -> None: 
         """Called when the screen is mounted. Populates the article list."""
         try:
             article_filenames = list_articles(self.directory_path)
             list_view = self.query_one("#article_list_view", ListView)
-            list_view.clear() # Clear any old items
+            list_view.clear() 
 
             if not article_filenames:
-                # Display a message if no articles are found
-                # One way: Add a non-selectable ListItem
                 list_view.append(ListItem(Static("No articles found in this directory.")))
-                # Or, you could update a separate Static widget if you add one for messages
             else:
                 for filename in article_filenames:
                     list_view.append(ListItem(Static(filename)))
         except Exception as e:
-            # Handle potential errors from list_articles (e.g., directory not found, though config should create them)
             list_view = self.query_one("#article_list_view", ListView)
             list_view.clear()
             list_view.append(ListItem(Static(f"Error listing articles: {e}")))
@@ -278,24 +244,18 @@ class ArticleListScreen(Screen):
         if event.button.id == "btn_back_to_review_menu":
             self.app.pop_screen()
 
-    # Modify on_list_view_selected to be more robust in case of non-article ListItems (like error messages)
     def on_list_view_selected(self, event: ListView.Selected) -> None:
         selected_item = event.item
         if selected_item:
             try:
                 static_widget = selected_item.query_one(Static)
-                article_name_renderable = static_widget.renderable
-                article_name_str = str(static_widget.renderable) # Ensure it's a string
+                article_name_str = str(static_widget.renderable) 
 
-                # Check if it's one of the message items
                 if "No articles found" in article_name_str or "Error listing articles" in article_name_str:
                     self.app.notify("This is an informational message, not an article.", severity="warning")
                     return
 
-                # Construct the full path
                 full_article_path = os.path.join(self.directory_path, article_name_str)
-                
-                # Push the ViewArticleScreen
                 self.app.push_screen(ViewArticleScreen(article_path=full_article_path, article_name=article_name_str))
             except Exception as e:
                 self.app.notify(f"Error processing selection for navigation: {e}", severity="error")
@@ -307,14 +267,12 @@ class ViewArticleScreen(Screen):
         super().__init__(**kwargs)
         self.article_path = article_path
         self.article_name = article_name
-        # Title for the screen itself, Header might have app title
         self.title = f"Viewing: {self.article_name}" 
 
     def compose(self) -> ComposeResult:
         yield Header()
-        # Using a Static for the title within the screen content area
         yield Static(self.title, classes="title", id="article_view_title") 
-        yield Markdown("", id="article_markdown_content") # Start with empty Markdown content
+        yield Markdown("", id="article_markdown_content") 
         yield Button("Back to Article List", id="btn_back_to_article_list", variant="default")
         yield Footer()
 
@@ -322,12 +280,10 @@ class ViewArticleScreen(Screen):
         if event.button.id == "btn_back_to_article_list":
             self.app.pop_screen()
 
-    async def on_mount(self) -> None: # Can be async or sync
+    async def on_mount(self) -> None: 
         """Called when the screen is mounted. Loads and displays the article content."""
         try:
-            # Load the article content
             article_content = load_article(self.article_path)
-            
             markdown_widget = self.query_one("#article_markdown_content", Markdown)
             
             if article_content is not None:
@@ -339,6 +295,25 @@ class ViewArticleScreen(Screen):
             markdown_widget = self.query_one("#article_markdown_content", Markdown)
             markdown_widget.update(f"# Error\n\nAn unexpected error occurred while loading article:\n{e}")
             self.app.notify(f"Unexpected error loading article: {e}", severity="error")
+
+class TermuxArticleApp(App):
+    """The main Textual application class."""
+
+    TITLE = "Termux Article CLI"
+    # CSS_PATH = "styles.css" # Optional: Can add a CSS file later
+
+    SCREENS = {
+        "main_screen": MainScreen,
+        "quit_screen": QuitScreen,
+        "generate_screen": GenerateScreen,
+        "review_menu_screen": ReviewMenuScreen,
+        "article_list_screen": ArticleListScreen,
+        "view_article_screen": ViewArticleScreen 
+    }
+
+    def on_mount(self) -> None:
+        """Called when the app is first mounted."""
+        self.push_screen("main_screen") 
 
 if __name__ == "__main__":
     app = TermuxArticleApp()
